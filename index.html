@@ -1,8 +1,25 @@
 <!DOCTYPE html>
+<!-- Previous HTML remains the same until the history-view div -->
 <html>
+<!-- Keep all previous head, style, and slate-view content the same -->
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Previous styles remain the same -->
     <style>
+        /* Previous styles remain the same */
+        .song-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #222;
+            border-radius: 5px;
+        }
+        .song-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #fff;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+        /* Include all previous styles */
         body {
             font-family: -apple-system, system-ui, BlinkMacSystemFont, sans-serif;
             margin: 0;
@@ -63,61 +80,192 @@
         }
         #noteInput {
             width: 100%;
+            height: 100px;
             padding: 10px;
             margin: 10px 0;
             border-radius: 5px;
             border: 1px solid #333;
             background: #111;
             color: white;
+            resize: vertical;
+            font-family: inherit;
         }
-        .notes-list {
+        .all-takes {
             margin-top: 20px;
-            max-height: 200px;
-            overflow-y: auto;
             background: #111;
             border-radius: 5px;
-            padding: 10px;
+            padding: 20px;
         }
-        .note-entry {
+        .take-entry {
             margin: 10px 0;
-            padding: 10px;
-            background: #222;
+            padding: 15px;
+            background: #111;
             border-radius: 5px;
+        }
+        .take-entry textarea {
+            width: 100%;
+            min-height: 60px;
+            margin-top: 10px;
+            padding: 8px;
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        .view-toggle {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .slate-view, .history-view {
+            display: none;
+        }
+        .active {
+            display: block;
+        }
+        .danger-zone {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #ff4444;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .danger-button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .danger-button:hover {
+            background: #ff6666;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <input type="text" id="projectTitle" placeholder="Enter Title" maxlength="20">
+    <!-- Previous slate-view content remains exactly the same -->
+    <div class="view-toggle">
+        <button onclick="toggleView('slate')">Slate View</button>
+        <button onclick="toggleView('history')">History View</button>
     </div>
-    
-    <div class="take-number">TAKE <span id="takeNumber">1</span></div>
-    
-    <div class="time" id="currentTime"></div>
-    
-    <div class="controls">
-        <button onclick="changeTake(-1)">-</button>
-        <button onclick="changeTake(1)">+</button>
+
+    <div class="slate-view active">
+        <div class="header">
+            <input type="text" id="projectTitle" placeholder="Enter Title" maxlength="20">
+        </div>
+        
+        <div class="take-number">TAKE <span id="takeNumber">1</span></div>
+        
+        <div class="time" id="currentTime"></div>
+        
+        <div class="controls">
+            <button onclick="changeTake(-1)">-</button>
+            <button onclick="changeTake(1)">+</button>
+        </div>
+        
+        <div class="notes-section">
+            <textarea id="noteInput" placeholder="Add note for current take..."></textarea>
+            <button onclick="saveNote()">Save Note</button>
+        </div>
     </div>
-    
-    <div class="notes-section">
-        <input type="text" id="noteInput" placeholder="Add note for current take...">
-        <button onclick="saveNote()">Save Note</button>
-        <div class="notes-list" id="notesList"></div>
+
+    <div class="history-view">
+        <h2>All Takes History</h2>
+        <div id="allTakesList"></div>
+        
+        <div class="danger-zone">
+            <h3>Danger Zone</h3>
+            <button class="danger-button" onclick="clearAllData()">Clear All Data</button>
+        </div>
     </div>
 
     <script>
+        // Previous script content remains the same, but update the updateAllTakesList function
         let currentTake = 1;
-        let notes = JSON.parse(localStorage.getItem('slateNotes')) || {};
         let projectTitle = localStorage.getItem('projectTitle') || '';
+        let allTakes = JSON.parse(localStorage.getItem('allTakes')) || {};
 
-        // Initialize project title
-        document.getElementById('projectTitle').value = projectTitle;
+        function updateAllTakesList() {
+            const container = document.getElementById('allTakesList');
+            container.innerHTML = '';
+            
+            // Group takes by song title
+            const songGroups = {};
+            Object.entries(allTakes).forEach(([key, data]) => {
+                if (!songGroups[data.title]) {
+                    songGroups[data.title] = [];
+                }
+                songGroups[data.title].push({...data, key});
+            });
+            
+            // Sort songs alphabetically
+            Object.keys(songGroups).sort().forEach(songTitle => {
+                if (!songTitle) return; // Skip empty titles
+                
+                const songSection = document.createElement('div');
+                songSection.className = 'song-section';
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'song-title';
+                titleDiv.textContent = songTitle;
+                songSection.appendChild(titleDiv);
+                
+                // Sort takes by take number
+                songGroups[songTitle]
+                    .sort((a, b) => parseInt(a.take) - parseInt(b.take))
+                    .forEach(data => {
+                        const div = document.createElement('div');
+                        div.className = 'take-entry';
+                        div.innerHTML = `
+                            <strong>Take ${data.take}</strong> - Started: ${data.startTime}
+                            <textarea
+                                onchange="updateNote('${data.key}', this.value)"
+                                placeholder="No notes"
+                            >${data.note || ''}</textarea>
+                        `;
+                        songSection.appendChild(div);
+                    });
+                
+                container.appendChild(songSection);
+            });
+        }
 
-        // Save project title
+        // Include all other previous functions
+        function toggleView(view) {
+            document.querySelector('.slate-view').classList.remove('active');
+            document.querySelector('.history-view').classList.remove('active');
+            
+            if (view === 'slate') {
+                document.querySelector('.slate-view').classList.add('active');
+            } else {
+                document.querySelector('.history-view').classList.add('active');
+                updateAllTakesList();
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear all saved data? This cannot be undone.')) {
+                localStorage.clear();
+                allTakes = {};
+                projectTitle = '';
+                currentTake = 1;
+                
+                // Reset UI
+                document.getElementById('projectTitle').value = '';
+                document.getElementById('takeNumber').textContent = '1';
+                document.getElementById('noteInput').value = '';
+                document.getElementById('allTakesList').innerHTML = '';
+                
+                alert('All data has been cleared');
+            }
+        }
+
+        // All other previous functions remain the same
         document.getElementById('projectTitle').addEventListener('input', (e) => {
             projectTitle = e.target.value;
             localStorage.setItem('projectTitle', projectTitle);
+            updateAllTakesList();
         });
 
         function updateTime() {
@@ -130,62 +278,58 @@
             currentTake += change;
             if (currentTake < 1) currentTake = 1;
             document.getElementById('takeNumber').textContent = currentTake;
+            loadCurrentTakeNote();
+        }
+
+        function getTakeKey() {
+            return `${projectTitle}_take${currentTake}`;
         }
 
         function saveNote() {
             const noteInput = document.getElementById('noteInput');
             const note = noteInput.value.trim();
+            const takeKey = getTakeKey();
             
-            if (note) {
-                const timestamp = new Date().toLocaleTimeString();
-                if (!notes[currentTake]) {
-                    notes[currentTake] = [];
-                }
-                notes[currentTake].push({
-                    text: note,
-                    time: timestamp
-                });
-                localStorage.setItem('slateNotes', JSON.stringify(notes));
+            if (!allTakes[takeKey]) {
+                allTakes[takeKey] = {
+                    title: projectTitle,
+                    take: currentTake,
+                    startTime: new Date().toLocaleTimeString(),
+                    note: note
+                };
+            } else {
+                allTakes[takeKey].note = note;
+            }
+            
+            localStorage.setItem('allTakes', JSON.stringify(allTakes));
+            updateAllTakesList();
+        }
+
+        function loadCurrentTakeNote() {
+            const takeKey = getTakeKey();
+            const noteInput = document.getElementById('noteInput');
+            if (allTakes[takeKey]) {
+                noteInput.value = allTakes[takeKey].note || '';
+            } else {
                 noteInput.value = '';
-                updateNotesList();
             }
         }
 
-        function updateNotesList() {
-            const notesList = document.getElementById('notesList');
-            notesList.innerHTML = '';
-            
-            if (notes[currentTake]) {
-                notes[currentTake].forEach(note => {
-                    const noteDiv = document.createElement('div');
-                    noteDiv.className = 'note-entry';
-                    noteDiv.textContent = `${note.time}: ${note.text}`;
-                    notesList.appendChild(noteDiv);
-                });
+        function updateNote(takeKey, newNote) {
+            if (allTakes[takeKey]) {
+                allTakes[takeKey].note = newNote;
+                localStorage.setItem('allTakes', JSON.stringify(allTakes));
             }
         }
 
         // Initialize the app
         updateTime();
         setInterval(updateTime, 1000);
-        updateNotesList();
+        loadCurrentTakeNote();
+        toggleView('slate');
 
-        // Handle Enter key in note input
-        document.getElementById('noteInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                saveNote();
-            }
-        });
-
-        // Update notes list when take changes
-        const observer = new MutationObserver(() => {
-            updateNotesList();
-        });
-        observer.observe(document.getElementById('takeNumber'), { 
-            characterData: true,
-            childList: true,
-            subtree: true
-        });
+        // Auto-save notes when typing
+        document.getElementById('noteInput').addEventListener('input', saveNote);
     </script>
 </body>
 </html>
