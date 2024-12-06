@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #projectTitle {
+            font-size: 48px;
+            margin: 10px 0;
+            padding: 10px;
+            background: none;
+            border: none;
+            color: white;
+            text-align: center;
+            width: 100%;
+            font-weight: bold;
+        }
+        .take-number {
+            font-size: 120px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .time {
+            font-size: 36px;
+            text-align: center;
+            margin: 20px 0;
+            color: #888;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        button {
+            font-size: 24px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background: #333;
+            color: white;
+            cursor: pointer;
+        }
+        button:active {
+            background: #444;
+        }
+        .notes-section {
+            margin-top: 20px;
+        }
+        #noteInput {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background: #111;
+            color: white;
+        }
+        .notes-list {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #111;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .note-entry {
+            margin: 10px 0;
+            padding: 10px;
+            background: #222;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <input type="text" id="projectTitle" placeholder="Enter Title" maxlength="20">
+    </div>
+    
+    <div class="take-number">TAKE <span id="takeNumber">1</span></div>
+    
+    <div class="time" id="currentTime"></div>
+    
+    <div class="controls">
+        <button onclick="changeTake(-1)">-</button>
+        <button onclick="changeTake(1)">+</button>
+    </div>
+    
+    <div class="notes-section">
+        <input type="text" id="noteInput" placeholder="Add note for current take...">
+        <button onclick="saveNote()">Save Note</button>
+        <div class="notes-list" id="notesList"></div>
+    </div>
+
+    <script>
+        let currentTake = 1;
+        let notes = JSON.parse(localStorage.getItem('slateNotes')) || {};
+        let projectTitle = localStorage.getItem('projectTitle') || '';
+
+        // Initialize project title
+        document.getElementById('projectTitle').value = projectTitle;
+
+        // Save project title
+        document.getElementById('projectTitle').addEventListener('input', (e) => {
+            projectTitle = e.target.value;
+            localStorage.setItem('projectTitle', projectTitle);
+        });
+
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        function changeTake(change) {
+            currentTake += change;
+            if (currentTake < 1) currentTake = 1;
+            document.getElementById('takeNumber').textContent = currentTake;
+        }
+
+        function saveNote() {
+            const noteInput = document.getElementById('noteInput');
+            const note = noteInput.value.trim();
+            
+            if (note) {
+                const timestamp = new Date().toLocaleTimeString();
+                if (!notes[currentTake]) {
+                    notes[currentTake] = [];
+                }
+                notes[currentTake].push({
+                    text: note,
+                    time: timestamp
+                });
+                localStorage.setItem('slateNotes', JSON.stringify(notes));
+                noteInput.value = '';
+                updateNotesList();
+            }
+        }
+
+        function updateNotesList() {
+            const notesList = document.getElementById('notesList');
+            notesList.innerHTML = '';
+            
+            if (notes[currentTake]) {
+                notes[currentTake].forEach(note => {
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = 'note-entry';
+                    noteDiv.textContent = `${note.time}: ${note.text}`;
+                    notesList.appendChild(noteDiv);
+                });
+            }
+        }
+
+        // Initialize the app
+        updateTime();
+        setInterval(updateTime, 1000);
+        updateNotesList();
+
+        // Handle Enter key in note input
+        document.getElementById('noteInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                saveNote();
+            }
+        });
+
+        // Update notes list when take changes
+        const observer = new MutationObserver(() => {
+            updateNotesList();
+        });
+        observer.observe(document.getElementById('takeNumber'), { 
+            characterData: true,
+            childList: true,
+            subtree: true
+        });
+    </script>
+</body>
+</html>
